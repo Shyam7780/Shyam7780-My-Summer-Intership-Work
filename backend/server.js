@@ -8,7 +8,11 @@ dotenv.config();
 const app = express();
 
 // Middleware
-app.use(cors());
+app.use(cors({
+  origin: 'https://shyam7780-my-summer-intership-work.vercel.app/', // e.g., 'https://my-summer-internship.vercel.app'
+  methods: ['GET', 'POST', 'PUT', 'DELETE'],
+  credentials: true
+}));
 app.use(express.json());
 
 // Connect to MongoDB

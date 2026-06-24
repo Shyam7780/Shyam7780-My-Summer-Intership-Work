@@ -29,9 +29,8 @@ interface GalleryItem {
   category: string;
 }
 
-const API_BASE = 'https://shyam7780-my-summer-intership-work-1.onrender.com/api';
-
-const App: React.FC = () => {
+// पुरानी लाइन को हटाकर ये लिखें:
+const API_BASE = import.meta.env.VITE_API_URL || '/api';
   const [currentRate, setCurrentRate] = useState(1850);
   const [loading, setLoading] = useState(false);
   const [area, setArea] = useState('');
