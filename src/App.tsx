@@ -29,7 +29,7 @@ interface GalleryItem {
   category: string;
 }
 
-const API_BASE = '/api'; // Works on Vercel (same deployment) or change to your backend URL
+const API_BASE = 'https://shyam7780-my-summer-intership-work-1.onrender.com/api';
 
 const App: React.FC = () => {
   const [currentRate, setCurrentRate] = useState(1850);
