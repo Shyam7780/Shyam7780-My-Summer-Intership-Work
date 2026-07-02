@@ -1,5 +1,5 @@
 import React, { useState, useEffect } from 'react';
-import { Phone, MessageCircle, Home, Hammer, Calculator as CalcIcon, Image, Star, Send, Trash2, LogOut, Menu, X, Upload } from 'lucide-react';
+import { Phone, MessageCircle, Home, Hammer, Calculator as CalcIcon, Image, Star, Send, Trash2, LogOut, Menu, X, Upload, Edit } from 'lucide-react';
 import toast, { Toaster } from 'react-hot-toast';
 
 interface Inquiry { id?: number | string; _id?: string; name: string; phone: string; service: string; message: string; date?: string; createdAt?: string; }
