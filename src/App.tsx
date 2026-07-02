@@ -65,7 +65,7 @@ function App() {
     script.defer = true;
     script.onload = () => {
       (window as any).google.accounts.id.initialize({
-        client_id: "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",
+        client_id: "599229104872-k4av2be9nmidrbsn3qpb23dhf735ho3d.apps.googleusercontent.com",
         callback: handleGoogleCredentialResponse,
       });
       (window as any).google.accounts.id.renderButton(
