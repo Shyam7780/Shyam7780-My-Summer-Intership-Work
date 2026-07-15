@@ -11,107 +11,46 @@ const API_BASE = '/api';
 const ADMIN_EMAIL = 'ramchhotan63@gmail.com';
 const ADMIN_PASSWORD = 'Shyam@7780';
 
-// विभिन्न प्लान्स के डिफ़ॉल्ट रेट्स (अगर डेटाबेस लोड न हो)
-const PLAN_RATES: { [key: string]: number } = {
-  'basic': 1650,
-  'standard': 2150,
-  'premium': 2950,
-  'without-material': 1200
-};
-
 function App() {
-  const [currentRate, setCurrentRate] = useState(1850);
-  const [selectedPlan, setSelectedPlan] = useState('standard'); // कैलकुलेटर के लिए सिलेक्टेड प्लान
   const [loading, setLoading] = useState(false);
-  const [area, setArea] = useState('');
-  const [estimatedCost, setEstimatedCost] = useState(0);
   const [inquiries, setInquiries] = useState<Inquiry[]>([]);
   const [feedbacks, setFeedbacks] = useState<Feedback[]>([]);
   const [galleryItems, setGalleryItems] = useState<GalleryItem[]>([]);
+  
   const [activeAdminTab, setActiveAdminTab] = useState('dashboard');
   const [isAdminLoggedIn, setIsAdminLoggedIn] = useState(false);
   const [showAdminLogin, setShowAdminLogin] = useState(false);
   const [adminEmail, setAdminEmail] = useState('');
   const [adminPassword, setAdminPassword] = useState('');
   const [adminLoginError, setAdminLoginError] = useState('');
-  const [newRate, setNewRate] = useState(currentRate);
   
-  // गैलरी अपलोड के लिए स्टेट्स
   const [newGalleryCaption, setNewGalleryCaption] = useState('');
   const [newGalleryCategory, setNewGalleryCategory] = useState('completed');
-  const [galleryImageBase64, setGalleryImageBase64] = useState<string>(''); // एडमिन वर्क फोटो के लिए
+  const [galleryImageBase64, setGalleryImageBase64] = useState<string>('');
   const [showAddGallery, setShowAddGallery] = useState(false);
   
   const [contactForm, setContactForm] = useState({ name: '', phone: '', email: '', service: 'With Material', message: '' });
-  const [googleUser, setGoogleUser] = useState<{ name: string; email: string; picture: string } | null>(null);
+  
+  // नया सिंपल फीडबैक फॉर्म स्टेट
   const [reviewImageBase64, setReviewImageBase64] = useState<string>('');
-  const [feedbackForm, setFeedbackForm] = useState({ rating: 5, comment: '' });
+  const [feedbackForm, setFeedbackForm] = useState({ name: '', rating: 5, comment: '' });
   
   const [isMobileMenuOpen, setIsMobileMenuOpen] = useState(false);
   const [selectedService, setSelectedService] = useState('With Material');
 
   useEffect(() => {
-    fetchRate();
     fetchGallery();
     fetchFeedbacks(isAdminLoggedIn);
-    setupGoogleSignIn();
   }, [isAdminLoggedIn]);
 
-  const setupGoogleSignIn = () => {
-    if ((window as any).google) return;
-    const script = document.createElement('script');
-    script.src = 'https://accounts.google.com/gsi/client';
-    script.async = true;
-    script.defer = true;
-    script.onload = () => {
-      (window as any).google.accounts.id.initialize({
-        client_id: "599229104872-k4av2be9nmidrbsn3qpb23dhf735ho3d.apps.googleusercontent.com",
-        callback: handleGoogleCredentialResponse,
-      });
-      (window as any).google.accounts.id.renderButton(
-        document.getElementById("google-auth-btn"),
-        { theme: "outline", size: "large", width: "100%" }
-      );
-    };
-    document.head.appendChild(script);
-  };
-
-  const handleGoogleCredentialResponse = (response: any) => {
-    try {
-      const base64Url = response.credential.split('.')[1];
-      const base64 = base64Url.replace(/-/g, '+').replace(/_/g, '/');
-      const jsonPayload = decodeURIComponent(window.atob(base64).split('').map((c) => {
-        return '%' + ('00' + c.charCodeAt(0).toString(16)).slice(-2);
-      }).join(''));
-      const decoded = JSON.parse(jsonPayload);
-      setGoogleUser({ name: decoded.name, email: decoded.email, picture: decoded.picture });
-      toast.success(`Connected: ${decoded.email}`);
-    } catch (err) { }
-  };
-
-  // गैलरी या रिव्यू के लिए इमेज को Base64 में बदलने का कॉमन फंक्शन
   const handleFileConversion = (file: File, callback: (base64: string) => void) => {
     if (file.size > 3 * 1024 * 1024) {
       toast.error('File size too big! Max 3MB allowed.');
       return;
     }
     const reader = new FileReader();
-    reader.onloadend = () => {
-      callback(reader.result as string);
-    };
+    reader.onloadend = () => callback(reader.result as string);
     reader.readAsDataURL(file);
-  };
-
-  const fetchRate = async () => {
-    try {
-      const res = await fetch(`${API_BASE}/rate`);
-      if (!res.ok) return;
-      const data = await res.json();
-      if (data?.value) {
-        setCurrentRate(data.value);
-        setNewRate(data.value);
-      }
-    } catch (err) { }
   };
 
   const fetchInquiries = async () => {
@@ -119,12 +58,7 @@ function App() {
       const res = await fetch(`${API_BASE}/inquiries`);
       const data = await res.json();
       setInquiries(data.map((inq: any) => ({
-        id: inq._id,
-        name: inq.name,
-        phone: inq.phone,
-        service: inq.service,
-        message: inq.message,
-        date: inq.createdAt ? inq.createdAt.split('T')[0] : '',
+        id: inq._id, name: inq.name, phone: inq.phone, service: inq.service, message: inq.message, date: inq.createdAt ? inq.createdAt.split('T')[0] : '',
       })));
     } catch (err) { }
   };
@@ -135,15 +69,7 @@ function App() {
       const res = await fetch(url);
       const data = await res.json();
       setFeedbacks(data.map((f: any) => ({
-        id: f._id,
-        name: f.name,
-        rating: f.rating,
-        comment: f.comment,
-        approved: f.approved,
-        date: f.createdAt ? f.createdAt.split('T')[0] : '2025-01-01',
-        userEmail: f.userEmail,
-        userProfilePic: f.userProfilePic,
-        reviewImage: f.reviewImage
+        id: f._id, name: f.name, rating: f.rating, comment: f.comment, approved: f.approved, date: f.createdAt ? f.createdAt.split('T')[0] : '2025-01-01', userEmail: f.userEmail, userProfilePic: f.userProfilePic, reviewImage: f.reviewImage
       })));
     } catch (err) { }
   };
@@ -153,37 +79,16 @@ function App() {
       const res = await fetch(`${API_BASE}/gallery`);
       const data = await res.json();
       setGalleryItems(data.map((item: any) => ({
-        id: item._id || item.id,
-        url: item.url,
-        caption: item.caption,
-        category: item.category,
+        id: item._id || item.id, url: item.url, caption: item.caption, category: item.category,
       })));
     } catch (err) { }
-  };
-
-  // चॉइस किए गए ऑप्शन के आधार पर सटीक कैलकुलेशन
-  const calculateEstimate = () => {
-    if (!area || isNaN(parseFloat(area))) {
-      toast.error('Please enter a valid area');
-      return;
-    }
-    
-    // अगर 'standard' चुना है तो डेटाबेस वाला लाइव रेट यूज़ होगा, बाकी के लिए ऑब्जेक्ट रेट्स
-    const rateToUse = selectedPlan === 'standard' ? currentRate : (PLAN_RATES[selectedPlan] || currentRate);
-    const cost = Math.round(parseFloat(area) * rateToUse);
-    setEstimatedCost(cost);
-    toast.success(`Estimate calculated for ${selectedPlan.toUpperCase()} plan!`);
   };
 
   const handleContactSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
     setLoading(true);
     try {
-      const res = await fetch(`${API_BASE}/inquiries`, {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify(contactForm),
-      });
+      const res = await fetch(`${API_BASE}/inquiries`, { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify(contactForm) });
       if (res.ok) {
         toast.success('Inquiry submitted!');
         setContactForm({ name: '', phone: '', email: '', service: 'With Material', message: '' });
@@ -193,111 +98,71 @@ function App() {
     finally { setLoading(false); }
   };
 
+  // बिना गूगल लॉगिन के सिंपल फीडबैक सबमिशन
   const handleFeedbackSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
-    if (!googleUser) {
-      toast.error('Please login with Google first');
-      return;
-    }
+    if (!feedbackForm.name.trim()) return toast.error('Please enter your name');
     setLoading(true);
     try {
       const res = await fetch(`${API_BASE}/feedback`, {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({
-          name: googleUser.name,
-          userEmail: googleUser.email,
-          userProfilePic: googleUser.picture,
-          rating: feedbackForm.rating,
-          comment: feedbackForm.comment,
-          reviewImage: reviewImageBase64,
+        method: 'POST', headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ 
+          name: feedbackForm.name, 
+          rating: feedbackForm.rating, 
+          comment: feedbackForm.comment, 
+          reviewImage: reviewImageBase64 
         }),
       });
       if (res.ok) {
-        toast.success('Review submitted for approval!');
-        setFeedbackForm({ rating: 5, comment: '' });
+        toast.success('Review submitted! Waiting for Admin approval.');
+        setFeedbackForm({ name: '', rating: 5, comment: '' });
         setReviewImageBase64('');
-        setGoogleUser(null);
         fetchFeedbacks(isAdminLoggedIn);
       }
-    } catch (err) { }
+    } catch (err) { toast.error('Failed to submit review'); }
     finally { setLoading(false); }
   };
 
   const approveFeedback = async (id: number | string) => {
     try {
-      const res = await fetch(`${API_BASE}/feedback`, {
-        method: 'PUT',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ id, approved: true })
-      });
-      if (res.ok) {
-        fetchFeedbacks(true);
-        toast.success('Review approved!');
-      }
+      await fetch(`${API_BASE}/feedback`, { method: 'PUT', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ id, approved: true }) });
+      fetchFeedbacks(true);
+      toast.success('Review approved!');
     } catch (err) { }
   };
 
   const deleteFeedback = async (id: number | string) => {
+    setFeedbacks(prev => prev.filter(fb => fb.id !== id));
     try {
       await fetch(`${API_BASE}/feedback/${id}`, { method: 'DELETE' });
-      fetchFeedbacks(true);
-      toast.success('Deleted');
-    } catch (err) { }
+      toast.success('Deleted successfully');
+    } catch (err) { fetchFeedbacks(true); }
   };
 
-  const updateRate = async () => {
-    try {
-      const res = await fetch(`${API_BASE}/rate`, {
-        method: 'PUT',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ value: newRate }),
-      });
-      if (res.ok) {
-        setCurrentRate(newRate);
-        toast.success('Base rate updated!');
-      }
-    } catch (err) { }
-  };
-
-  // एडमिन द्वारा काम की असली फोटो अपलोड करने का लॉजिक
   const addToGallery = async () => {
-    if (!newGalleryCaption) {
-      toast.error('Please enter a caption');
-      return;
-    }
-    if (!galleryImageBase64) {
-      toast.error('Please select an image file to upload');
-      return;
-    }
+    if (!newGalleryCaption || !galleryImageBase64) return toast.error('Caption and Image are required');
     try {
       const res = await fetch(`${API_BASE}/gallery`, {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ 
-          url: galleryImageBase64, // डेटाबेस में सीधे बेस64 स्ट्रिंग अपलोड होगी
-          caption: newGalleryCaption, 
-          category: newGalleryCategory 
-        }),
+        method: 'POST', headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ url: galleryImageBase64, caption: newGalleryCaption, category: newGalleryCategory }),
       });
       if (res.ok) {
         fetchGallery();
-        toast.success('Project uploaded to portfolio successfully!');
+        toast.success('Project uploaded successfully!');
         setNewGalleryCaption('');
         setGalleryImageBase64('');
         setShowAddGallery(false);
       }
-    } catch (err) {
-      toast.error('Upload failed');
-    }
+    } catch (err) { toast.error('Upload failed'); }
   };
 
   const deleteGalleryItem = async (id: number | string) => {
+    setGalleryItems(prev => prev.filter(item => item.id !== id));
     try {
-      await fetch(`${API_BASE}/gallery/${id}`, { method: 'DELETE' });
-      fetchGallery();
-      toast.success('Project deleted!');
-    } catch (err) { }
+      const res = await fetch(`${API_BASE}/gallery/${id}`, { method: 'DELETE' });
+      if(res.ok){ toast.success('Project deleted!'); } 
+      else { fetchGallery(); }
+    } catch (err) { fetchGallery(); }
   };
 
   const handleAdminLogin = () => {
@@ -333,8 +198,9 @@ function App() {
                 <p className="text-[8px] md:text-[10px] text-blue-600 font-semibold">CONSTRUCTION • PATNA</p>
               </div>
             </div>
+            {/* CALCULATOR REMOVED FROM NAVBAR */}
             <div className="hidden md:flex items-center gap-8 text-sm font-medium">
-              {['services', 'packages', 'calculator', 'gallery', 'testimonials', 'contact'].map(s => (
+              {['services', 'packages', 'gallery', 'testimonials', 'contact'].map(s => (
                 <button key={s} onClick={() => scrollToSection(s)} className="hover:text-blue-600 transition capitalize">{s}</button>
               ))}
             </div>
@@ -346,7 +212,7 @@ function App() {
         </div>
         {isMobileMenuOpen && (
           <div className="md:hidden bg-white px-4 py-6 border-t flex flex-col gap-4 shadow-lg text-base">
-            {['services', 'packages', 'calculator', 'gallery', 'testimonials', 'contact'].map(section => (
+            {['services', 'packages', 'gallery', 'testimonials', 'contact'].map(section => (
               <button key={section} onClick={() => scrollToSection(section)} className="text-left py-2 border-b border-gray-50 capitalize">{section}</button>
             ))}
           </div>
@@ -361,10 +227,10 @@ function App() {
             <h1 className="text-4xl sm:text-5xl md:text-[60px] leading-tight font-bold text-gray-900 mb-4">Quality Homes.<br />Built with Trust.</h1>
             <p className="max-w-lg text-sm sm:text-base text-gray-600">Chhotan Ram Construction delivers reliable residential construction services across Patna. From planning to finishing — we handle everything with transparency.</p>
             <div className="flex flex-col sm:flex-row gap-3 mt-6 w-full">
-              <button onClick={() => scrollToSection('calculator')} className="px-8 h-12 bg-blue-600 text-white rounded-xl flex items-center justify-center gap-2 font-semibold">
-                <CalcIcon size={18} /> FREE ESTIMATE
+              <button onClick={() => scrollToSection('contact')} className="px-8 h-12 bg-blue-600 text-white rounded-xl flex items-center justify-center gap-2 font-semibold hover:bg-blue-700 transition">
+                <Phone size={18} /> CONTACT FOR QUOTE
               </button>
-              <button onClick={() => scrollToSection('contact')} className="px-6 h-12 border-2 border-gray-900 rounded-xl font-semibold hover:bg-gray-900 hover:text-white transition-all">Get In Touch</button>
+              <button onClick={() => scrollToSection('gallery')} className="px-6 h-12 border-2 border-gray-900 rounded-xl font-semibold hover:bg-gray-900 hover:text-white transition-all">View Our Work</button>
             </div>
           </div>
           <div className="md:col-span-5 relative">
@@ -388,9 +254,7 @@ function App() {
             ].map((service, index) => (
               <div key={index} onClick={() => {
                 setSelectedService(service.title);
-                if(service.title === 'Without Material') setSelectedPlan('without-material');
-                else if(service.title === 'Remodeling') setSelectedPlan('basic');
-                scrollToSection('calculator');
+                scrollToSection('contact');
               }} className={`p-6 border-2 rounded-2xl cursor-pointer ${selectedService === service.title ? 'border-blue-600 bg-blue-50/20' : 'border-gray-100'}`}>
                 <h3 className="text-xl font-bold mb-2">{service.title}</h3>
                 <p className="text-gray-600 text-sm">{service.desc}</p>
@@ -420,62 +284,15 @@ function App() {
                 <ul className="space-y-2 mb-6 flex-1 text-sm text-gray-600">
                   {pkg.features.map((f, idx) => <li key={idx} className="flex items-center gap-2"><div className="w-1.5 h-1.5 bg-green-500 rounded-full"></div>{f}</li>)}
                 </ul>
-                <button onClick={() => { setSelectedPlan(pkg.id); scrollToSection('calculator'); }} className="w-full py-2.5 bg-blue-600 text-white hover:bg-blue-700 transition rounded-xl text-xs font-bold uppercase tracking-wider">SELECT FOR ESTIMATE</button>
+                <button onClick={() => scrollToSection('contact')} className="w-full py-2.5 bg-blue-600 text-white hover:bg-blue-700 transition rounded-xl text-xs font-bold uppercase tracking-wider">CONTACT FOR QUOTE</button>
               </div>
             ))}
           </div>
         </div>
       </section>
 
-      {/* COST CALCULATOR (UPDATED WITH CHOICE DROPDOWN) */}
-      <section id="calculator" className="py-12 md:py-20 bg-white px-4 md:px-6">
-        <div className="max-w-4xl mx-auto">
-          <div className="bg-slate-50 border rounded-2xl p-6 md:p-12 max-w-md mx-auto text-center shadow-sm">
-            <h2 className="text-2xl font-bold mb-2">Smart Cost Calculator</h2>
-            <p className="text-xs text-gray-500 mb-6">चुनें कि आपको कौन सा मटेरियल या पैकेज चाहिए</p>
-            
-            <div className="space-y-4 text-left">
-              {/* प्लान चॉइस ऑप्शन ड्रॉपडाउन */}
-              <div>
-                <label className="block text-xs font-bold text-gray-400 mb-1.5 uppercase">1. अपना पैकेज/प्लान चुनें</label>
-                <select 
-                  value={selectedPlan} 
-                  onChange={e => setSelectedPlan(e.target.value)}
-                  className="w-full h-12 border bg-white rounded-xl px-3 text-sm font-medium outline-none focus:border-blue-500"
-                >
-                  <option value="basic">Basic Package (With Material) — ₹1650/sqft</option>
-                  <option value="standard">Standard Package (Live Database Rate) — ₹{currentRate}/sqft</option>
-                  <option value="premium">Premium Package (Luxury Material) — ₹2950/sqft</option>
-                  <option value="without-material">Labour Rate Only (Without Material) — ₹1200/sqft</option>
-                </select>
-              </div>
-
-              <div>
-                <label className="block text-xs font-bold text-gray-400 mb-1.5 uppercase">2. बिल्ट-अप एरिया दर्ज करें</label>
-                <div className="relative">
-                  <input type="number" value={area} onChange={e => setArea(e.target.value)} placeholder="E.g. 1200" className="w-full h-12 border rounded-xl px-4 text-lg outline-none focus:border-blue-500" />
-                  <div className="absolute right-4 top-1/2 -translate-y-1/2 text-gray-400 font-bold text-sm">sqft</div>
-                </div>
-              </div>
-
-              <button onClick={calculateEstimate} className="w-full h-12 bg-blue-600 text-white font-bold rounded-xl mt-2 hover:bg-blue-700 transition">
-                CALCULATE COST
-              </button>
-
-              {estimatedCost > 0 && (
-                <div className="bg-white border border-emerald-200 rounded-xl p-4 text-center mt-4 animate-fade-in">
-                  <div className="text-emerald-600 text-xs font-semibold tracking-wider uppercase">Estimated Project Cost</div>
-                  <div className="text-3xl font-black text-emerald-700 mt-1">₹{estimatedCost.toLocaleString('en-IN')}</div>
-                  <div className="text-[10px] text-gray-400 mt-1">Note: Final quotation may vary after physical site visit.</div>
-                </div>
-              )}
-            </div>
-          </div>
-        </div>
-      </section>
-
       {/* GALLERY */}
-      <section id="gallery" className="py-12 md:py-20 bg-slate-50 px-4 md:px-6">
+      <section id="gallery" className="py-12 md:py-20 bg-white px-4 md:px-6">
         <div className="max-w-7xl mx-auto">
           <h2 className="text-3xl font-bold mb-6">Our Completed Work</h2>
           <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 gap-4">
@@ -488,46 +305,70 @@ function App() {
                 </div>
               </div>
             ))}
+            {galleryItems.length === 0 && <p className="text-gray-500 text-sm">No photos uploaded yet.</p>}
           </div>
         </div>
       </section>
 
-      {/* TESTIMONIALS */}
-      <section id="testimonials" className="py-12 md:py-20 bg-white px-4 md:px-6">
+      {/* TESTIMONIALS WITH NEW SIMPLE FORM */}
+      <section id="testimonials" className="py-12 md:py-20 bg-slate-50 px-4 md:px-6">
         <div className="max-w-4xl mx-auto">
           <h2 className="text-3xl font-bold text-center mb-6">Customer Reviews</h2>
           <div className="grid grid-cols-1 gap-4 mb-8">
             {approvedFeedbacks.map(fb => (
-              <div key={fb.id} className="bg-slate-50 p-6 rounded-2xl border">
+              <div key={fb.id} className="bg-white p-6 rounded-2xl border shadow-sm">
                 <div className="flex items-center gap-3 mb-2">
-                  <img src={fb.userProfilePic || "/images/avatar-default.png"} alt="user" className="w-8 h-8 rounded-full" />
+                  <div className="w-10 h-10 bg-blue-100 text-blue-600 rounded-full flex items-center justify-center font-bold text-lg uppercase">
+                    {fb.name.charAt(0)}
+                  </div>
                   <div>
                     <div className="font-bold text-sm">{fb.name}</div>
-                    <div className="text-[10px] text-emerald-600">✓ Verified User</div>
+                    <div className="flex gap-0.5">
+                      {[...Array(5)].map((_, i) => <Star key={i} size={12} fill={i < fb.rating ? "#fbbf24" : "none"} color={i < fb.rating ? "#fbbf24" : "#d1d5db"} />)}
+                    </div>
                   </div>
                 </div>
-                <p className="text-gray-600 italic text-sm">"{fb.comment}"</p>
+                <p className="text-gray-600 italic text-sm mt-3">"{fb.comment}"</p>
                 {fb.reviewImage && <img src={fb.reviewImage} alt="attached" className="mt-3 rounded-xl max-h-40 object-cover" />}
               </div>
             ))}
+            {approvedFeedbacks.length === 0 && <p className="text-center text-gray-500 text-sm">No reviews yet.</p>}
           </div>
 
-          <div className="bg-slate-50 rounded-2xl p-6 border max-w-lg mx-auto">
+          <div className="bg-white rounded-2xl p-6 border max-w-lg mx-auto shadow-sm">
             <h3 className="font-bold text-lg text-center mb-4">Write a Review</h3>
             <form onSubmit={handleFeedbackSubmit} className="space-y-4">
-              {!googleUser ? <div id="google-auth-btn"></div> : (
-                <div className="bg-blue-50 p-2 rounded-xl flex justify-between text-xs">
-                  <span>Logged in as: <b>{googleUser.email}</b></span>
-                  <button type="button" onClick={() => setGoogleUser(null)} className="text-red-500 underline">Logout</button>
-                </div>
-              )}
-              <textarea placeholder="Type your review here..." value={feedbackForm.comment} onChange={e => setFeedbackForm({ ...feedbackForm, comment: e.target.value })} className="w-full h-24 p-3 border rounded-xl bg-white text-sm" required />
-              <div className="border border-dashed bg-white p-4 text-center relative rounded-xl">
-                <input type="file" accept="image/*" onChange={e => e.target.files?.[0] && handleFileConversion(e.target.files[0], setReviewImageBase64)} className="absolute inset-0 opacity-0 cursor-pointer" />
-                <span className="text-xs text-gray-500">📷 Attach Site Photo (Max 2MB)</span>
+              
+              {/* SIMPLE NAME INPUT */}
+              <div>
+                <label className="text-xs font-bold text-gray-500 uppercase mb-1 block">Your Name</label>
+                <input type="text" placeholder="E.g. Rahul Kumar" value={feedbackForm.name} onChange={e => setFeedbackForm({...feedbackForm, name: e.target.value})} className="w-full h-11 border rounded-xl px-3 text-sm outline-none focus:border-blue-500" required />
               </div>
-              {reviewImageBase64 && <div className="text-xs text-green-600 text-center">✓ Photo attached!</div>}
-              <button type="submit" disabled={!googleUser || loading} className="w-full h-11 bg-gray-900 text-white font-bold rounded-xl disabled:bg-gray-300">Submit Verified Review</button>
+
+              {/* STAR RATING */}
+              <div>
+                <label className="text-xs font-bold text-gray-500 uppercase mb-1 block">Rating</label>
+                <div className="flex gap-2">
+                  {[1, 2, 3, 4, 5].map(num => (
+                    <Star key={num} size={28} fill={feedbackForm.rating >= num ? "#fbbf24" : "none"} color={feedbackForm.rating >= num ? "#fbbf24" : "#d1d5db"} className="cursor-pointer transition-all" onClick={() => setFeedbackForm({...feedbackForm, rating: num})} />
+                  ))}
+                </div>
+              </div>
+
+              {/* COMMENT */}
+              <div>
+                <label className="text-xs font-bold text-gray-500 uppercase mb-1 block">Your Experience</label>
+                <textarea placeholder="Tell us about the work..." value={feedbackForm.comment} onChange={e => setFeedbackForm({ ...feedbackForm, comment: e.target.value })} className="w-full h-24 p-3 border rounded-xl bg-white text-sm outline-none focus:border-blue-500" required />
+              </div>
+
+              {/* OPTIONAL PHOTO */}
+              <div className="border border-dashed bg-slate-50 hover:bg-slate-100 transition p-4 text-center relative rounded-xl cursor-pointer">
+                <input type="file" accept="image/*" onChange={e => e.target.files?.[0] && handleFileConversion(e.target.files[0], setReviewImageBase64)} className="absolute inset-0 opacity-0 cursor-pointer w-full h-full" />
+                <span className="text-xs text-gray-600 font-medium">📷 Attach Site Photo (Optional)</span>
+              </div>
+              {reviewImageBase64 && <div className="text-xs text-green-600 text-center font-bold">✓ Photo attached!</div>}
+              
+              <button type="submit" disabled={loading} className="w-full h-11 bg-gray-900 text-white font-bold rounded-xl disabled:bg-gray-400 transition">Submit Review</button>
             </form>
           </div>
         </div>
@@ -544,71 +385,74 @@ function App() {
           <div className="md:col-span-3">
             <form onSubmit={handleContactSubmit} className="bg-white/5 p-6 rounded-2xl space-y-4">
               <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
-                <input type="text" placeholder="Name" value={contactForm.name} onChange={e => setContactForm({ ...contactForm, name: e.target.value })} className="bg-white/10 rounded-xl px-4 h-11 text-white text-sm" required />
-                <input type="tel" placeholder="Phone" value={contactForm.phone} onChange={e => setContactForm({ ...contactForm, phone: e.target.value })} className="bg-white/10 rounded-xl px-4 h-11 text-white text-sm" required />
+                <input type="text" placeholder="Name" value={contactForm.name} onChange={e => setContactForm({ ...contactForm, name: e.target.value })} className="bg-white/10 rounded-xl px-4 h-11 text-white text-sm outline-none focus:border-blue-500" required />
+                <input type="tel" placeholder="Phone" value={contactForm.phone} onChange={e => setContactForm({ ...contactForm, phone: e.target.value })} className="bg-white/10 rounded-xl px-4 h-11 text-white text-sm outline-none focus:border-blue-500" required />
               </div>
-              <textarea value={contactForm.message} onChange={e => setContactForm({ ...contactForm, message: e.target.value })} placeholder="Details..." rows={3} className="w-full bg-white/10 rounded-xl px-4 py-2 text-white text-sm" required />
-              <button type="submit" className="w-full h-11 bg-white text-gray-900 font-bold rounded-xl text-sm">SEND INQUIRY</button>
+              <textarea value={contactForm.message} onChange={e => setContactForm({ ...contactForm, message: e.target.value })} placeholder="Details or Requirements..." rows={3} className="w-full bg-white/10 rounded-xl px-4 py-3 text-white text-sm outline-none focus:border-blue-500" required />
+              <button type="submit" className="w-full h-11 bg-white text-gray-900 font-bold rounded-xl text-sm hover:bg-gray-200 transition">SEND INQUIRY</button>
             </form>
           </div>
         </div>
       </section>
 
-      {/* ADMIN PANEL WITH WORK PHOTO UPLOAD CAPABILITY */}
+      {/* ADMIN PANEL */}
       {isAdminLoggedIn && (
         <div className="fixed inset-0 bg-black/95 z-[9999] flex flex-col md:flex-row">
           <div className="bg-slate-900 w-full md:w-64 p-6 text-white shrink-0">
             <div className="flex justify-between items-center mb-6">
               <span className="font-bold">Admin Portal</span>
-              <button onClick={adminLogout} className="text-xs bg-red-600 px-3 py-1 rounded-lg">Logout</button>
+              <button onClick={adminLogout} className="text-xs bg-red-600 hover:bg-red-700 transition px-3 py-1 rounded-lg">Logout</button>
             </div>
             <div className="flex md:flex-col gap-2 overflow-x-auto">
-              {['dashboard', 'inquiries', 'rate', 'gallery', 'feedback'].map(tab => (
-                <button key={tab} onClick={() => { setActiveAdminTab(tab); if(tab === 'inquiries') fetchInquiries(); }} className={`px-4 py-2 rounded-xl text-xs text-left capitalize ${activeAdminTab === tab ? 'bg-white text-slate-900' : 'text-slate-300'}`}>{tab}</button>
+              {['dashboard', 'inquiries', 'gallery', 'feedback'].map(tab => (
+                <button key={tab} onClick={() => { setActiveAdminTab(tab); if(tab === 'inquiries') fetchInquiries(); }} className={`px-4 py-2 rounded-xl text-xs text-left capitalize transition ${activeAdminTab === tab ? 'bg-white text-slate-900 font-bold' : 'text-slate-300 hover:bg-slate-800'}`}>{tab}</button>
               ))}
             </div>
           </div>
           <div className="flex-1 bg-slate-50 p-6 overflow-y-auto">
             {activeAdminTab === 'dashboard' && <div className="text-xl font-bold">Welcome to Dashboard. Total Inquiries: {inquiries.length}</div>}
+            
             {activeAdminTab === 'inquiries' && inquiries.map(inq => (
-              <div key={inq.id} className="bg-white p-4 rounded-xl border mb-3">
-                <div className="font-bold text-sm">{inq.name} ({inq.phone})</div>
-                <p className="text-xs text-gray-600 mt-2 bg-slate-50 p-2 rounded-lg">{inq.message}</p>
+              <div key={inq.id} className="bg-white p-4 rounded-xl border mb-3 shadow-sm">
+                <div className="font-bold text-sm text-blue-600">{inq.name} <span className="text-gray-800 font-normal">({inq.phone})</span></div>
+                <p className="text-xs text-gray-600 mt-2 bg-slate-50 p-3 rounded-lg border">{inq.message}</p>
+                <div className="text-[10px] text-gray-400 mt-2">{inq.date}</div>
               </div>
             ))}
-            {activeAdminTab === 'rate' && (
-              <div className="max-w-xs bg-white p-6 rounded-xl border text-center mx-auto">
-                <div className="text-2xl font-bold text-blue-600 mb-4">₹{currentRate}</div>
-                <input type="number" value={newRate} onChange={e => setNewRate(Number(e.target.value))} className="border-b-2 text-center text-xl mb-4 w-full outline-none" />
-                <button onClick={updateRate} className="bg-blue-600 text-white w-full h-10 rounded-lg text-xs font-bold">SAVE</button>
-              </div>
-            )}
+            
             {activeAdminTab === 'feedback' && feedbacks.map(fb => (
-              <div key={fb.id} className="bg-white p-4 rounded-xl border mb-3 flex justify-between items-center">
+              <div key={fb.id} className="bg-white p-4 rounded-xl border mb-3 flex flex-col md:flex-row md:justify-between md:items-center gap-4 shadow-sm">
                 <div>
-                  <div className="font-bold text-sm">{fb.name}</div>
-                  <p className="text-xs text-gray-600 italic">"{fb.comment}"</p>
+                  <div className="font-bold text-sm">{fb.name} <span className="text-xs text-gray-400 ml-2 font-normal">Rated: {fb.rating} Stars</span></div>
+                  <p className="text-sm text-gray-600 italic mt-1">"{fb.comment}"</p>
+                  {fb.reviewImage && <img src={fb.reviewImage} alt="Review" className="mt-2 h-16 rounded border" />}
                 </div>
                 <div className="flex gap-2">
-                  {!fb.approved && <button onClick={() => approveFeedback(fb.id)} className="bg-emerald-600 text-white px-3 py-1 rounded-lg text-xs font-bold">APPROVE</button>}
-                  <button onClick={() => deleteFeedback(fb.id)} className="border border-red-500 text-red-500 px-3 py-1 rounded-lg text-xs font-bold">DELETE</button>
+                  {!fb.approved && <button onClick={() => approveFeedback(fb.id)} className="bg-emerald-600 text-white px-4 py-2 rounded-lg text-xs font-bold hover:bg-emerald-700 transition">APPROVE</button>}
+                  <button onClick={() => deleteFeedback(fb.id)} className="border border-red-500 text-red-500 hover:bg-red-50 transition px-4 py-2 rounded-lg text-xs font-bold">DELETE</button>
                 </div>
               </div>
             ))}
+            
             {activeAdminTab === 'gallery' && (
               <div>
                 <div className="flex justify-between items-center mb-6">
                   <h3 className="text-xl font-bold text-slate-800">Manage Portfolio Gallery</h3>
-                  <button onClick={() => setShowAddGallery(true)} className="bg-blue-600 text-white px-4 py-2 rounded-xl text-xs font-bold">+ UPLOAD WORK PHOTO</button>
+                  <button onClick={() => setShowAddGallery(true)} className="bg-blue-600 hover:bg-blue-700 transition text-white px-4 py-2 rounded-xl text-xs font-bold shadow-sm">+ UPLOAD WORK PHOTO</button>
                 </div>
                 <div className="grid grid-cols-2 md:grid-cols-3 gap-4">
                   {galleryItems.map(item => (
-                    <div key={item.id} className="bg-white rounded-xl overflow-hidden border shadow-sm p-2">
-                      <img src={item.url} alt={item.caption} className="w-full h-32 object-cover rounded-lg" />
+                    <div key={item.id} className="bg-white rounded-xl overflow-hidden border shadow-sm p-2 flex flex-col">
+                      <img src={item.url} alt={item.caption} className="w-full h-32 object-cover rounded-lg bg-slate-100" />
                       <p className="text-xs font-semibold text-gray-700 mt-2 truncate">{item.caption}</p>
-                      <button onClick={() => deleteGalleryItem(item.id)} className="text-red-500 text-[10px] font-bold mt-2 flex items-center gap-1"><Trash2 size={12}/> Delete</button>
+                      <div className="mt-auto pt-2">
+                        <button onClick={() => deleteGalleryItem(item.id)} className="w-full bg-red-50 hover:bg-red-100 text-red-600 py-2 rounded-lg text-xs font-bold flex items-center justify-center gap-1 transition">
+                          <Trash2 size={14}/> Delete
+                        </button>
+                      </div>
                     </div>
                   ))}
+                  {galleryItems.length === 0 && <p className="text-gray-500 text-sm col-span-full">No photos in gallery.</p>}
                 </div>
               </div>
             )}
@@ -619,59 +463,48 @@ function App() {
       {/* ADMIN LOGIN MODAL */}
       {showAdminLogin && (
         <div className="fixed inset-0 bg-black/70 z-[99999] flex items-center justify-center p-4">
-          <div className="bg-white rounded-2xl w-full max-w-sm p-6">
+          <div className="bg-white rounded-2xl w-full max-w-sm p-6 shadow-xl">
             <h3 className="text-lg font-bold text-center mb-4">Admin Login</h3>
             <div className="space-y-4">
-              <input type="email" placeholder="Email" value={adminEmail} onChange={e => setAdminEmail(e.target.value)} className="w-full h-10 border rounded-lg px-3 text-sm" />
-              <input type="password" placeholder="Password" value={adminPassword} onChange={e => setAdminPassword(e.target.value)} className="w-full h-10 border rounded-lg px-3 text-sm" onKeyDown={e => e.key === 'Enter' && handleAdminLogin()} />
-              {adminLoginError && <p className="text-red-500 text-xs text-center">{adminLoginError}</p>}
-              <button onClick={handleAdminLogin} className="w-full h-10 bg-blue-600 text-white font-bold rounded-lg text-sm">LOGIN</button>
-              <button onClick={() => setShowAdminLogin(false)} className="w-full text-gray-400 text-xs text-center mt-2">Cancel</button>
+              <input type="email" placeholder="Email" value={adminEmail} onChange={e => setAdminEmail(e.target.value)} className="w-full h-11 border rounded-xl px-3 text-sm outline-none focus:border-blue-500" />
+              <input type="password" placeholder="Password" value={adminPassword} onChange={e => setAdminPassword(e.target.value)} className="w-full h-11 border rounded-xl px-3 text-sm outline-none focus:border-blue-500" onKeyDown={e => e.key === 'Enter' && handleAdminLogin()} />
+              {adminLoginError && <p className="text-red-500 text-xs text-center font-semibold">{adminLoginError}</p>}
+              <button onClick={handleAdminLogin} className="w-full h-11 bg-blue-600 hover:bg-blue-700 transition text-white font-bold rounded-xl text-sm">LOGIN</button>
+              <button onClick={() => setShowAdminLogin(false)} className="w-full text-gray-400 hover:text-gray-600 transition text-xs text-center font-semibold">Cancel</button>
             </div>
           </div>
         </div>
       )}
 
-      {/* UPGRADED ADD TO GALLERY MODAL WITH REAL FILE UPLOADER BUTTON */}
+      {/* ADD TO GALLERY MODAL */}
       {showAddGallery && (
         <div className="fixed inset-0 bg-black/70 z-[99999] flex items-center justify-center p-4">
-          <div className="bg-white rounded-2xl max-w-md w-full p-6 space-y-4">
+          <div className="bg-white rounded-2xl max-w-md w-full p-6 space-y-4 shadow-xl">
             <h3 className="text-xl font-bold">Upload New Completed Project</h3>
-            
             <div>
-              <label className="block text-xs font-bold text-gray-400 mb-1 uppercase">1. प्रोजेक्ट का नाम / कैप्शन</label>
-              <input value={newGalleryCaption} onChange={(e) => setNewGalleryCaption(e.target.value)} className="w-full border rounded-xl px-3 h-11 text-sm" placeholder="E.g. 3-Story Luxury Villa at Danapur" />
+              <label className="block text-xs font-bold text-gray-500 mb-1 uppercase">1. प्रोजेक्ट का नाम</label>
+              <input value={newGalleryCaption} onChange={(e) => setNewGalleryCaption(e.target.value)} className="w-full border rounded-xl px-3 h-11 text-sm outline-none focus:border-blue-500" placeholder="E.g. 3-Story Luxury Villa at Danapur" />
             </div>
-
             <div>
-              <label className="block text-xs font-bold text-gray-400 mb-1 uppercase">2. प्रोजेक्ट इमेज फ़ाइल चुनें</label>
-              <div className="border border-dashed border-gray-300 rounded-xl p-4 text-center relative hover:bg-gray-50 transition cursor-pointer">
-                <input 
-                  type="file" 
-                  accept="image/*" 
-                  onChange={e => {
-                    const file = e.target.files?.[0];
-                    if (file) handleFileConversion(file, setGalleryImageBase64);
-                  }} 
-                  className="absolute inset-0 opacity-0 cursor-pointer w-full h-full" 
-                />
-                <div className="text-xs text-gray-500">📁 Click to choose file from Computer/Phone</div>
+              <label className="block text-xs font-bold text-gray-500 mb-1 uppercase">2. प्रोजेक्ट इमेज फ़ाइल चुनें</label>
+              <div className="border border-dashed border-gray-300 rounded-xl p-6 text-center relative hover:bg-slate-50 transition cursor-pointer">
+                <input type="file" accept="image/*" onChange={e => { const file = e.target.files?.[0]; if (file) handleFileConversion(file, setGalleryImageBase64); }} className="absolute inset-0 opacity-0 cursor-pointer w-full h-full" />
+                <div className="text-sm text-gray-600 font-medium">📁 Click to choose file</div>
+                <div className="text-xs text-gray-400 mt-1">Max size: 3MB</div>
               </div>
-              {galleryImageBase64 && <p className="text-xs text-green-600 text-center mt-1">✓ Photo selected successfully!</p>}
+              {galleryImageBase64 && <p className="text-xs text-emerald-600 font-bold text-center mt-2">✓ Photo selected successfully!</p>}
             </div>
-
             <div>
-              <label className="block text-xs font-bold text-gray-400 mb-1 uppercase">3. कैटेगरी चुनें</label>
+              <label className="block text-xs font-bold text-gray-500 mb-1 uppercase">3. कैटेगरी चुनें</label>
               <div className="flex gap-2">
                 {['completed', 'ongoing', 'interior'].map(cat => (
-                  <button key={cat} type="button" onClick={() => setNewGalleryCategory(cat)} className={`flex-1 py-2 text-xs font-bold rounded-xl border ${newGalleryCategory === cat ? 'bg-black text-white' : 'hover:bg-gray-50'}`}>{cat.toUpperCase()}</button>
+                  <button key={cat} type="button" onClick={() => setNewGalleryCategory(cat)} className={`flex-1 py-2.5 text-xs font-bold rounded-xl border transition ${newGalleryCategory === cat ? 'bg-gray-900 text-white border-gray-900' : 'hover:bg-gray-50 text-gray-600'}`}>{cat.toUpperCase()}</button>
                 ))}
               </div>
             </div>
-
             <div className="pt-4 flex gap-3">
-              <button onClick={() => setShowAddGallery(false)} className="flex-1 h-11 border text-sm font-semibold rounded-xl">CANCEL</button>
-              <button onClick={addToGallery} className="flex-1 h-11 bg-blue-600 text-white text-sm font-semibold rounded-xl">UPLOAD PROJECT</button>
+              <button onClick={() => setShowAddGallery(false)} className="flex-1 h-11 border border-gray-300 text-gray-600 text-sm font-bold rounded-xl hover:bg-gray-50 transition">CANCEL</button>
+              <button onClick={addToGallery} className="flex-1 h-11 bg-blue-600 hover:bg-blue-700 transition text-white text-sm font-bold rounded-xl">UPLOAD PROJECT</button>
             </div>
           </div>
         </div>
