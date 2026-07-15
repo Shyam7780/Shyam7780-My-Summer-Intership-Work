@@ -31,7 +31,6 @@ function App() {
   
   const [contactForm, setContactForm] = useState({ name: '', phone: '', email: '', service: 'With Material', message: '' });
   
-  // नया सिंपल फीडबैक फॉर्म स्टेट
   const [reviewImageBase64, setReviewImageBase64] = useState<string>('');
   const [feedbackForm, setFeedbackForm] = useState({ name: '', rating: 5, comment: '' });
   
@@ -98,31 +97,48 @@ function App() {
     finally { setLoading(false); }
   };
 
-  // बिना गूगल लॉगिन के सिंपल फीडबैक सबमिशन
+  // नया इंक्वायरी डिलीट करने का फंक्शन 
+  const deleteInquiry = async (id: number | string) => {
+    setInquiries(prev => prev.filter(inq => inq.id !== id));
+    try {
+      const res = await fetch(`${API_BASE}/inquiries/${id}`, { method: 'DELETE' });
+      if(res.ok){ toast.success('Inquiry deleted!'); }
+      else { fetchInquiries(); }
+    } catch (err) { fetchInquiries(); }
+  };
+
+  // बिना गूगल लॉगिन के सिंपल फीडबैक सबमिशन (फिक्स्ड)
   const handleFeedbackSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
     if (!feedbackForm.name.trim()) return toast.error('Please enter your name');
     setLoading(true);
     try {
       const res = await fetch(`${API_BASE}/feedback`, {
-        method: 'POST', headers: { 'Content-Type': 'application/json' },
+        method: 'POST', 
+        headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({ 
           name: feedbackForm.name, 
+          userEmail: 'guest@chhotanram.com', // बैकएंड की वैलिडेशन पास करने के लिए डमी ईमेल
+          userProfilePic: '', // डमी प्रोफाइल पिक्चर
           rating: feedbackForm.rating, 
           comment: feedbackForm.comment, 
           reviewImage: reviewImageBase64 
         }),
       });
+      
       if (res.ok) {
         toast.success('Review submitted! Waiting for Admin approval.');
         setFeedbackForm({ name: '', rating: 5, comment: '' });
         setReviewImageBase64('');
         fetchFeedbacks(isAdminLoggedIn);
+      } else {
+        toast.error('Server Error: Failed to submit review');
       }
-    } catch (err) { toast.error('Failed to submit review'); }
+    } catch (err) { 
+      toast.error('Network Error: Please try again'); 
+    }
     finally { setLoading(false); }
   };
-
   const approveFeedback = async (id: number | string) => {
     try {
       await fetch(`${API_BASE}/feedback`, { method: 'PUT', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ id, approved: true }) });
@@ -198,7 +214,6 @@ function App() {
                 <p className="text-[8px] md:text-[10px] text-blue-600 font-semibold">CONSTRUCTION • PATNA</p>
               </div>
             </div>
-            {/* CALCULATOR REMOVED FROM NAVBAR */}
             <div className="hidden md:flex items-center gap-8 text-sm font-medium">
               {['services', 'packages', 'gallery', 'testimonials', 'contact'].map(s => (
                 <button key={s} onClick={() => scrollToSection(s)} className="hover:text-blue-600 transition capitalize">{s}</button>
@@ -310,7 +325,7 @@ function App() {
         </div>
       </section>
 
-      {/* TESTIMONIALS WITH NEW SIMPLE FORM */}
+      {/* TESTIMONIALS */}
       <section id="testimonials" className="py-12 md:py-20 bg-slate-50 px-4 md:px-6">
         <div className="max-w-4xl mx-auto">
           <h2 className="text-3xl font-bold text-center mb-6">Customer Reviews</h2>
@@ -338,14 +353,10 @@ function App() {
           <div className="bg-white rounded-2xl p-6 border max-w-lg mx-auto shadow-sm">
             <h3 className="font-bold text-lg text-center mb-4">Write a Review</h3>
             <form onSubmit={handleFeedbackSubmit} className="space-y-4">
-              
-              {/* SIMPLE NAME INPUT */}
               <div>
                 <label className="text-xs font-bold text-gray-500 uppercase mb-1 block">Your Name</label>
                 <input type="text" placeholder="E.g. Rahul Kumar" value={feedbackForm.name} onChange={e => setFeedbackForm({...feedbackForm, name: e.target.value})} className="w-full h-11 border rounded-xl px-3 text-sm outline-none focus:border-blue-500" required />
               </div>
-
-              {/* STAR RATING */}
               <div>
                 <label className="text-xs font-bold text-gray-500 uppercase mb-1 block">Rating</label>
                 <div className="flex gap-2">
@@ -354,20 +365,15 @@ function App() {
                   ))}
                 </div>
               </div>
-
-              {/* COMMENT */}
               <div>
                 <label className="text-xs font-bold text-gray-500 uppercase mb-1 block">Your Experience</label>
                 <textarea placeholder="Tell us about the work..." value={feedbackForm.comment} onChange={e => setFeedbackForm({ ...feedbackForm, comment: e.target.value })} className="w-full h-24 p-3 border rounded-xl bg-white text-sm outline-none focus:border-blue-500" required />
               </div>
-
-              {/* OPTIONAL PHOTO */}
               <div className="border border-dashed bg-slate-50 hover:bg-slate-100 transition p-4 text-center relative rounded-xl cursor-pointer">
                 <input type="file" accept="image/*" onChange={e => e.target.files?.[0] && handleFileConversion(e.target.files[0], setReviewImageBase64)} className="absolute inset-0 opacity-0 cursor-pointer w-full h-full" />
                 <span className="text-xs text-gray-600 font-medium">📷 Attach Site Photo (Optional)</span>
               </div>
               {reviewImageBase64 && <div className="text-xs text-green-600 text-center font-bold">✓ Photo attached!</div>}
-              
               <button type="submit" disabled={loading} className="w-full h-11 bg-gray-900 text-white font-bold rounded-xl disabled:bg-gray-400 transition">Submit Review</button>
             </form>
           </div>
@@ -409,16 +415,47 @@ function App() {
               ))}
             </div>
           </div>
+          
           <div className="flex-1 bg-slate-50 p-6 overflow-y-auto">
-            {activeAdminTab === 'dashboard' && <div className="text-xl font-bold">Welcome to Dashboard. Total Inquiries: {inquiries.length}</div>}
             
-            {activeAdminTab === 'inquiries' && inquiries.map(inq => (
-              <div key={inq.id} className="bg-white p-4 rounded-xl border mb-3 shadow-sm">
-                <div className="font-bold text-sm text-blue-600">{inq.name} <span className="text-gray-800 font-normal">({inq.phone})</span></div>
-                <p className="text-xs text-gray-600 mt-2 bg-slate-50 p-3 rounded-lg border">{inq.message}</p>
-                <div className="text-[10px] text-gray-400 mt-2">{inq.date}</div>
+            {/* नया डिज़ाइन किया गया डैशबोर्ड */}
+            {activeAdminTab === 'dashboard' && (
+              <div>
+                <h3 className="text-xl font-bold mb-6 text-slate-800">Admin Dashboard</h3>
+                <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
+                  <div className="bg-white p-6 rounded-xl border shadow-sm border-l-4 border-l-blue-500">
+                    <div className="text-gray-500 text-xs font-bold uppercase">Total Inquiries</div>
+                    <div className="text-3xl font-black text-gray-800 mt-2">{inquiries.length}</div>
+                  </div>
+                  <div className="bg-white p-6 rounded-xl border shadow-sm border-l-4 border-l-emerald-500">
+                    <div className="text-gray-500 text-xs font-bold uppercase">Approved Reviews</div>
+                    <div className="text-3xl font-black text-gray-800 mt-2">{approvedFeedbacks.length}</div>
+                  </div>
+                  <div className="bg-white p-6 rounded-xl border shadow-sm border-l-4 border-l-purple-500">
+                    <div className="text-gray-500 text-xs font-bold uppercase">Gallery Photos</div>
+                    <div className="text-3xl font-black text-gray-800 mt-2">{galleryItems.length}</div>
+                  </div>
+                </div>
               </div>
-            ))}
+            )}
+            
+            {/* नया इंक्वायरी सेक्शन - डिलीट बटन के साथ */}
+            {activeAdminTab === 'inquiries' && (
+              <div>
+                <h3 className="text-xl font-bold mb-6 text-slate-800">Customer Inquiries</h3>
+                {inquiries.length === 0 ? <p className="text-gray-500 text-sm">No inquiries found.</p> : inquiries.map(inq => (
+                  <div key={inq.id} className="bg-white p-4 rounded-xl border mb-3 shadow-sm flex flex-col md:flex-row justify-between md:items-center gap-4">
+                    <div>
+                      <div className="font-bold text-sm text-blue-600">{inq.name} <span className="text-gray-800 font-normal">({inq.phone})</span></div>
+                      <p className="text-xs text-gray-600 mt-2 bg-slate-50 p-3 rounded-lg border">{inq.message}</p>
+                      <div className="text-[10px] text-gray-400 mt-2">{inq.date}</div>
+                    </div>
+                    {/* नया डिलीट बटन */}
+                    <button onClick={() => deleteInquiry(inq.id!)} className="border border-red-500 text-red-500 hover:bg-red-50 transition px-4 py-2 rounded-lg text-xs font-bold shrink-0">DELETE</button>
+                  </div>
+                ))}
+              </div>
+            )}
             
             {activeAdminTab === 'feedback' && feedbacks.map(fb => (
               <div key={fb.id} className="bg-white p-4 rounded-xl border mb-3 flex flex-col md:flex-row md:justify-between md:items-center gap-4 shadow-sm">
